@@ -1,0 +1,17 @@
+# Ambiente virtual
+venv/
+.venv/
+env/
+
+# Cache e bytecode do Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Ambientes/IDEs
+.vscode/
+.idea/
+
+# Sistema
+.DS_Store
+Thumbs.db
