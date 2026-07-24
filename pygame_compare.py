@@ -36,7 +36,10 @@ import pygame_visualize as pv
 # ------------------------------------------------------------------ #
 CELL_SIZE = 18          # menor que no modo single-view, para caber 3 lado a lado
 PANEL_GAP = 12          # espaço entre painéis
-STEP_DELAY_S = 0.03     # atraso entre expansões, por thread (mesma ideia de ANIMATION_DELAY_MS)
+STEP_DELAY_S = 0.03     # atraso entre atualizações de estado, por thread
+FRAME_EVERY = 1         # a cada quantos nós expandidos o estado do painel é
+                        # atualizado/pausado (1 = a cada nó; aumente para
+                        # acelerar labirintos grandes)
 
 ALGORITHMS = [
     ("BFS", bfs_search),
@@ -76,12 +79,22 @@ class PanelState:
 def _make_worker(fn, env, state):
     """Cria a função que roda em thread: chama a busca original com o
     hook on_expand, apenas observando e pausando um pouco a cada passo
-    para a animação ficar visível. A lógica da busca não é tocada."""
+    para a animação ficar visível. A lógica da busca não é tocada.
+
+    FRAME_EVERY controla quantos "sends" (pausas/atualizações visíveis)
+    de fato acontecem: o estado do painel é sempre atualizado, mas a
+    pausa (que dá tempo do olho acompanhar) só ocorre a cada FRAME_EVERY
+    nós — útil para acelerar algoritmos com muitas expansões (ex.: BFS)
+    sem perder a visualização do progresso."""
 
     def worker():
+        count = {"n": 0}
+
         def on_expand(current, closed_set, open_set):
             state.update(closed_set, open_set)
-            time.sleep(STEP_DELAY_S)
+            count["n"] += 1
+            if count["n"] % FRAME_EVERY == 0:
+                time.sleep(STEP_DELAY_S)
 
         result = fn(env, on_expand=on_expand)
         state.finish(result)
@@ -90,62 +103,66 @@ def _make_worker(fn, env, state):
 
 
 def run_comparison(env=None):
-    if env is None:
-        env = MazeEnv(size=15, obstacle_prob=0.28, seed=0)
+    first_env = env or MazeEnv(size=15, obstacle_prob=0.28, seed=0)
 
-    panel_w = env.size * CELL_SIZE
-    panel_h = pv.HUD_HEIGHT + env.size * CELL_SIZE
+    panel_w = first_env.size * CELL_SIZE
+    panel_h = pv.HUD_HEIGHT + first_env.size * CELL_SIZE
     width = len(ALGORITHMS) * panel_w + (len(ALGORITHMS) - 1) * PANEL_GAP
     height = panel_h
 
     pygame.init()
     screen = pygame.display.set_mode((width, height))
-    pygame.display.set_caption("BFS vs Greedy vs A* — comparação ao vivo")
+    pygame.display.set_caption("BFS vs Greedy vs A* — [R] novo labirinto | [ESC] sair")
     clock = pygame.time.Clock()
 
     font_big = pygame.font.SysFont("couriernew", 16, bold=True)
     font_small = pygame.font.SysFont("couriernew", 12, bold=True)
 
-    states = [PanelState() for _ in ALGORITHMS]
-    threads = []
-    for (name, fn), state in zip(ALGORITHMS, states):
-        # cada thread busca sobre o MESMO env (só leitura: neighbors/grid),
-        # sem escrever nele — por isso é seguro compartilhar entre threads.
-        t = threading.Thread(target=_make_worker(fn, env, state), daemon=True)
-        threads.append(t)
-        t.start()
-
-    def draw_frame():
-        screen.fill(pv.COLOR_BG)
-        for i, ((name, _), state) in enumerate(zip(ALGORITHMS, states)):
-            ox = i * (panel_w + PANEL_GAP)
-            closed, open_nodes, path = state.snapshot()
-            pv._draw_grid(screen, env, closed=closed, open_nodes=open_nodes,
-                           path=path, origin=(ox, pv.HUD_HEIGHT), cell_size=CELL_SIZE)
-            status = "CONCLUIDO" if state.done else "BUSCANDO..."
-            cost = state.result["cost"] if state.done and state.result else None
-            pv._draw_hud(screen, font_big, font_small, panel_w, status,
-                         nodes_expanded=len(closed), cost=cost,
-                         origin=(ox, 0), title=name)
-        pygame.display.flip()
-
-    # Loop principal: só redesenha o estado mais recente de cada thread,
-    # até todas terminarem, e depois mantém a tela final visível.
-    while not all(s.done for s in states):
-        pv._pump_events()
-        draw_frame()
-        clock.tick(60)
-
-    print("Comparação concluída:")
-    for (name, _), state in zip(ALGORITHMS, states):
-        r = state.result
-        print(f"  {name:<8} custo={r['cost']}  nós_expandidos={r['nodes_expanded']}")
-
-    print("Feche a janela para encerrar.")
+    current_env = first_env
     while True:
-        pv._pump_events()
-        draw_frame()
-        clock.tick(30)
+        env = current_env
+        states = [PanelState() for _ in ALGORITHMS]
+        threads = []
+        for (name, fn), state in zip(ALGORITHMS, states):
+            # cada thread busca sobre o MESMO env (só leitura: neighbors/grid),
+            # sem escrever nele — por isso é seguro compartilhar entre threads.
+            t = threading.Thread(target=_make_worker(fn, env, state), daemon=True)
+            threads.append(t)
+            t.start()
+
+        def draw_frame(instructions=None):
+            screen.fill(pv.COLOR_BG)
+            for i, ((name, _), state) in enumerate(zip(ALGORITHMS, states)):
+                ox = i * (panel_w + PANEL_GAP)
+                closed, open_nodes, path = state.snapshot()
+                pv._draw_grid(screen, env, closed=closed, open_nodes=open_nodes,
+                               path=path, origin=(ox, pv.HUD_HEIGHT), cell_size=CELL_SIZE)
+                status = instructions or ("CONCLUIDO" if state.done else "BUSCANDO...")
+                cost = state.result["cost"] if state.done and state.result else None
+                pv._draw_hud(screen, font_big, font_small, panel_w, status,
+                             nodes_expanded=len(closed), cost=cost,
+                             origin=(ox, 0), title=name)
+            pygame.display.flip()
+
+        # Loop principal: só redesenha o estado mais recente de cada thread,
+        # até todas terminarem.
+        while not all(s.done for s in states):
+            pv._pump_events()
+            draw_frame()
+            clock.tick(60)
+
+        print("Comparação concluída:")
+        for (name, _), state in zip(ALGORITHMS, states):
+            r = state.result
+            print(f"  {name:<8} custo={r['cost']}  nós_expandidos={r['nodes_expanded']}")
+        print("Aperte [R] para um novo labirinto aleatório, ou feche a janela / [ESC] para sair.")
+
+        draw_frame(instructions="CONCLUIDO — [R] novo labirinto")
+        while not pv._wait_for_restart(clock):
+            pass
+
+        # Sorteia um labirinto novo de verdade (mesmo tamanho/densidade)
+        current_env = MazeEnv(size=first_env.size, obstacle_prob=first_env.obstacle_prob, seed=None)
 
 
 if __name__ == "__main__":

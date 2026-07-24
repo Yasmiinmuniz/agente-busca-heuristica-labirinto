@@ -43,7 +43,10 @@ from agents import astar_search
 # ------------------------------------------------------------------ #
 # Configuração da animação — ajuste aqui para acelerar/desacelerar
 # ------------------------------------------------------------------ #
-ANIMATION_DELAY_MS = 30       # atraso (ms) entre cada expansão de nó exibida
+ANIMATION_DELAY_MS = 30       # atraso (ms) entre cada atualização de tela exibida
+FRAME_EVERY = 1               # a cada quantos nós expandidos a tela é redesenhada
+                              # (1 = redesenha a cada nó; 5 = só a cada 5 nós,
+                              # útil para acelerar labirintos grandes)
 CELL_SIZE = 32                # tamanho de cada célula do grid, em pixels
 HUD_HEIGHT = 56               # altura do painel de estatísticas (estilo placar de arcade)
 
@@ -149,69 +152,115 @@ def _draw_hud(screen, font_big, font_small, width, status, nodes_expanded, cost=
 def _pump_events():
     """Processa eventos da janela do Pygame durante os atrasos da
     animação (evita que o SO marque a janela como 'not responding') e
-    permite fechar a janela a qualquer momento pelo X."""
+    permite fechar a janela a qualquer momento pelo X ou tecla ESC."""
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
             sys.exit()
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            pygame.quit()
+            sys.exit()
 
 
-def run_astar_visualization(env=None):
+def _wait_for_restart(clock):
+    """Processa eventos enquanto a tela final fica parada, esperando o
+    jogador apertar R (novo labirinto aleatório) ou fechar a janela.
+    Retorna True assim que a tecla R é pressionada."""
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                pygame.quit()
+                sys.exit()
+            if event.key == pygame.K_r:
+                return True
+    clock.tick(30)
+    return False
+
+
+def run_astar_visualization(env=None, size=15, obstacle_prob=0.28):
     """Executa o A* (sua lógica original, inalterada) e anima cada
     expansão de nó em tempo real usando o callback on_expand, com HUD
-    de estatísticas ao vivo estilo placar de arcade."""
-    if env is None:
-        env = MazeEnv(size=15, obstacle_prob=0.28, seed=0)
+    de estatísticas ao vivo estilo placar de arcade.
 
+    Ao terminar, aperte [R] para sortear um novo labirinto aleatório e
+    rodar a busca de novo (mesmo tamanho/densidade de obstáculos), ou
+    [ESC]/feche a janela para sair. `MazeEnv(seed=None)` já gera um
+    labirinto verdadeiramente aleatório a cada chamada — a lógica de
+    geração do ambiente não foi alterada."""
+    fixed_env = env  # se o chamador passou um env específico, só ele usa a 1ª rodada
     pygame.init()
-    width = env.size * CELL_SIZE
-    height = HUD_HEIGHT + env.size * CELL_SIZE
+
+    first_env = fixed_env or MazeEnv(size=size, obstacle_prob=obstacle_prob, seed=0)
+    width = first_env.size * CELL_SIZE
+    height = HUD_HEIGHT + first_env.size * CELL_SIZE
     screen = pygame.display.set_mode((width, height))
-    pygame.display.set_caption("A* Maze Arcade — Open List (ciano) e Closed List (magenta)")
+    pygame.display.set_caption("A* Maze Arcade — [R] novo labirinto | [ESC] sair")
     clock = pygame.time.Clock()
 
     font_big = pygame.font.SysFont("couriernew", 20, bold=True)
     font_small = pygame.font.SysFont("couriernew", 14, bold=True)
 
-    # Guarda o último snapshot de Open/Closed List para redesenhar o
-    # estado final junto com o caminho encontrado (ver abaixo).
-    last_state = {"closed": set(), "open": set()}
-
-    def on_expand(current, closed_set, open_set):
-        """Callback passado ao A* (agents.astar_search). É chamado uma vez
-        por nó expandido, com cópias da Closed List e da Open List naquele
-        instante — apenas observa e desenha, não interfere na busca."""
-        last_state["closed"] = closed_set
-        last_state["open"] = open_set
-
-        _pump_events()
-        _draw_grid(screen, env, closed=closed_set, open_nodes=open_set)
-        _draw_hud(screen, font_big, font_small, width,
-                  status="BUSCANDO...", nodes_expanded=len(closed_set))
-        pygame.display.flip()
-        pygame.time.delay(ANIMATION_DELAY_MS)
-        clock.tick(60)
-
-    result = astar_search(env, on_expand=on_expand)
-
-    # Estado final: mantém Open List e Closed List visíveis (para
-    # evidenciar como o algoritmo tomou sua decisão) e destaca o caminho
-    # encontrado em amarelo por cima de tudo.
-    _pump_events()
-    _draw_grid(screen, env, closed=last_state["closed"],
-               open_nodes=last_state["open"], path=result["path"])
-    status = "CAMINHO ENCONTRADO!" if result["success"] else "SEM SOLUCAO"
-    _draw_hud(screen, font_big, font_small, width, status=status,
-              nodes_expanded=result["nodes_expanded"], cost=result["cost"])
-    pygame.display.flip()
-
-    print(f"Busca concluída — sucesso={result['success']}, "
-          f"custo={result['cost']}, nós expandidos={result['nodes_expanded']}")
-    print("Feche a janela para encerrar.")
-
+    current_env = first_env
     while True:
+        env = current_env
+
+        # Guarda o último snapshot de Open/Closed List para redesenhar o
+        # estado final junto com o caminho encontrado (ver abaixo).
+        last_state = {"closed": set(), "open": set()}
+        expand_count = {"n": 0}
+
+        def on_expand(current, closed_set, open_set):
+            """Callback passado ao A* (agents.astar_search). É chamado uma
+            vez por nó expandido, com cópias da Closed List e da Open List
+            naquele instante — apenas observa e desenha, não interfere na
+            busca.
+
+            FRAME_EVERY controla quantos "sends" (atualizações de tela) de
+            fato acontecem: o estado é sempre salvo, mas o redesenho só
+            ocorre a cada FRAME_EVERY nós, para permitir acelerar a
+            animação em labirintos grandes sem perder o estado final
+            correto."""
+            last_state["closed"] = closed_set
+            last_state["open"] = open_set
+            expand_count["n"] += 1
+
+            if expand_count["n"] % FRAME_EVERY != 0:
+                return
+
+            _pump_events()
+            _draw_grid(screen, env, closed=closed_set, open_nodes=open_set)
+            _draw_hud(screen, font_big, font_small, width,
+                      status="BUSCANDO...", nodes_expanded=len(closed_set))
+            pygame.display.flip()
+            pygame.time.delay(ANIMATION_DELAY_MS)
+            clock.tick(60)
+
+        result = astar_search(env, on_expand=on_expand)
+
+        # Estado final: mantém Open List e Closed List visíveis (para
+        # evidenciar como o algoritmo tomou sua decisão) e destaca o
+        # caminho encontrado em amarelo por cima de tudo.
         _pump_events()
-        clock.tick(30)
+        _draw_grid(screen, env, closed=last_state["closed"],
+                   open_nodes=last_state["open"], path=result["path"])
+        status = "CAMINHO ENCONTRADO! [R] novo labirinto" if result["success"] else "SEM SOLUCAO — [R] novo labirinto"
+        _draw_hud(screen, font_big, font_small, width, status=status,
+                  nodes_expanded=result["nodes_expanded"], cost=result["cost"])
+        pygame.display.flip()
+
+        print(f"Busca concluída — sucesso={result['success']}, "
+              f"custo={result['cost']}, nós expandidos={result['nodes_expanded']}")
+        print("Aperte [R] para um novo labirinto aleatório, ou feche a janela / [ESC] para sair.")
+
+        while not _wait_for_restart(clock):
+            pass
+
+        # Depois da primeira rodada, sempre sorteia um labirinto novo
+        # (mesmo que a primeira tenha usado um env fixo passado por fora).
+        current_env = MazeEnv(size=first_env.size, obstacle_prob=first_env.obstacle_prob, seed=None)
 
 
 if __name__ == "__main__":
