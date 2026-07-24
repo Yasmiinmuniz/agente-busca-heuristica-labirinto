@@ -23,6 +23,7 @@ import statistics as stats
 from maze_env import MazeEnv
 from agents import bfs_search, greedy_best_first_search, astar_search
 from visualize import render_maze
+from charts import plot_comparison
 
 N_MAZES = 10          # número de labirintos por rodada de teste
 MAZE_SIZE = 15
@@ -60,6 +61,8 @@ def main():
     print(header)
     print("-" * len(header))
 
+    summary = {}
+
     for name, runs in results.items():
         successes = [r for r in runs if r["success"]]
         success_rate = len(successes) / len(runs) * 100
@@ -67,6 +70,7 @@ def main():
         avg_nodes = stats.mean(r["nodes_expanded"] for r in runs)
         avg_time = stats.mean(r["time_ms"] for r in runs)
         print(f"{name:<10}{success_rate:<10.1f}{avg_cost:<14.2f}{avg_nodes:<24.2f}{avg_time:<18.3f}")
+        summary[name] = {"cost": avg_cost, "nodes": avg_nodes, "time": avg_time}
 
     print("\nConclusão esperada: BFS e A* encontram o caminho de custo mínimo "
           "(mesmo custo médio), mas A* expande menos nós que o BFS por usar "
@@ -93,6 +97,10 @@ def main():
                 save_path="output_bfs.png")
 
     print("\nImagens salvas: output_greedy.png, output_astar.png, output_bfs.png")
+
+    # --- Gráfico comparativo (custo, nós expandidos, tempo) --------------
+    plot_comparison(summary, save_path="comparison_chart.png")
+    print("Gráfico comparativo salvo: comparison_chart.png")
 
 
 if __name__ == "__main__":

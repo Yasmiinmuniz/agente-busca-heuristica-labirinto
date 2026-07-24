@@ -52,7 +52,12 @@ def _reconstruct(came_from, action_from, start, goal):
 # --------------------------------------------------------------------- #
 # 1) BFS — busca não-informada (referência / baseline do item 8)
 # --------------------------------------------------------------------- #
-def bfs_search(env):
+def bfs_search(env, on_expand=None):
+    """
+    Parâmetro opcional `on_expand`: mesma finalidade e assinatura descrita
+    em astar_search — apenas instrumentação/visualização, não afeta a
+    lógica de busca.
+    """
     start, goal = env.start, env.goal
     frontier = deque([start])
     came_from = {}
@@ -63,6 +68,12 @@ def bfs_search(env):
     while frontier:
         cur = frontier.popleft()
         nodes_expanded += 1
+
+        if on_expand is not None:
+            # Aqui a Open List é a fila FIFO `frontier` (ordem de chegada,
+            # sem custo nem heurística) e a Closed List é `visited`.
+            on_expand(cur, set(visited), set(frontier))
+
         if cur == goal:
             path, actions = _reconstruct(came_from, action_from, start, goal)
             return {"path": path, "actions": actions, "nodes_expanded": nodes_expanded,
@@ -82,7 +93,12 @@ def bfs_search(env):
 #    ignora o custo já percorrido. É o comportamento inicial/naive
 #    que pode ficar preso em becos sem saída ou achar caminhos ruins.
 # --------------------------------------------------------------------- #
-def greedy_best_first_search(env):
+def greedy_best_first_search(env, on_expand=None):
+    """
+    Parâmetro opcional `on_expand`: mesma finalidade e assinatura descrita
+    em astar_search — apenas instrumentação/visualização, não afeta a
+    lógica de busca.
+    """
     start, goal = env.start, env.goal
     counter = itertools.count()
     frontier = [(manhattan(start, goal), next(counter), start)]
@@ -94,6 +110,14 @@ def greedy_best_first_search(env):
     while frontier:
         _, _, cur = heapq.heappop(frontier)
         nodes_expanded += 1
+
+        if on_expand is not None:
+            # Open List: nós na fila de prioridade, ordenados só por h(n)
+            # (ignora o custo já percorrido — por isso é "ingênuo").
+            # Closed List: nós já expandidos (visited).
+            open_nodes = {item[2] for item in frontier}
+            on_expand(cur, set(visited), open_nodes)
+
         if cur == goal:
             path, actions = _reconstruct(came_from, action_from, start, goal)
             return {"path": path, "actions": actions, "nodes_expanded": nodes_expanded,
@@ -113,7 +137,18 @@ def greedy_best_first_search(env):
 #    heurística (h). Garante caminho ótimo (heurística de Manhattan é
 #    admissível para movimentos ortogonais de custo 1).
 # --------------------------------------------------------------------- #
-def astar_search(env):
+def astar_search(env, on_expand=None):
+    """
+    Parâmetro opcional `on_expand` (instrumentação/visualização):
+        Callback chamado a cada nó expandido, no formato
+        on_expand(current, closed_set, open_set), onde:
+          - closed_set: cópia da Closed List (nós já expandidos até agora)
+          - open_set:   cópia da Open List (nós na fronteira, aguardando expansão)
+        Não afeta a lógica, os critérios de expansão nem o resultado da
+        busca — serve apenas para permitir observar/animar o algoritmo
+        externamente (ver pygame_visualize.py). Quando None (padrão), o
+        comportamento é idêntico ao original.
+    """
     start, goal = env.start, env.goal
     counter = itertools.count()
     g_score = {start: 0}
@@ -129,6 +164,18 @@ def astar_search(env):
             continue
         visited.add(cur)
         nodes_expanded += 1
+
+        if on_expand is not None:
+            # Open List: nós já descobertos mas ainda não expandidos —
+            # são os "candidatos" que o A* pode escolher visitar em
+            # seguida, ordenados por f(n) = g(n) + h(n) no heap `frontier`.
+            # Closed List: nós já expandidos (visited) — o algoritmo não
+            # os reconsidera, o que evita retrabalho e garante progresso.
+            # Esses dois conjuntos são o que faz o A* "decidir" o caminho:
+            # a Open List indica para onde olhar a seguir, e a Closed List
+            # registra o que já foi decidido/descartado.
+            open_nodes = {item[2] for item in frontier}
+            on_expand(cur, set(visited), open_nodes)
 
         if cur == goal:
             path, actions = _reconstruct(came_from, action_from, start, goal)
