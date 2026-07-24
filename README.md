@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Agente de Busca Heurística em Labirinto (A*)
 
 Estudo Dirigido — IA 2026.1
