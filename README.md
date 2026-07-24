@@ -123,7 +123,3 @@ run_experiment.py   # protocolo de avaliação, métricas e geração de imagens
 requirements.txt
 README.md
 ```
-=======
-# agente-busca-heuristica-labirinto
-Agente de busca heurística (A) resolvendo labirinto em grid, com comparação a BFS e Greedy Best-First — Estudo Dirigido IA 2026.1
->>>>>>> f277c32bbb9f7cb246a5e32399111447d51f2357
