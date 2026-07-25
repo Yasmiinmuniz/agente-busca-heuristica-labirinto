@@ -1,24 +1,25 @@
-# 🕹️ Maze A\* Arcade — Agente de Busca Heurística em Labirinto
+# 🕹️ Maze A\* — Agente de Busca Heurística em Labirinto
 
 **Estudo Dirigido — IA 2026.1**
-Integrante: **Yasmin da Silva Muniz** *(trabalho desenvolvido individualmente)*
+Integrante: **Yasmin da Silva Muniz** 
+GitHub: [Yasmiinmuniz (Yasmin Muniz)](https://github.com/Yasmiinmuniz)
+Vídeo da apresentação: *(link do YouTube — adicionar após a gravação)*
 
 ![Python](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python&logoColor=white)
 ![Pygame](https://img.shields.io/badge/Pygame-2.5%2B-1a1aff)
 ![Matplotlib](https://img.shields.io/badge/Matplotlib-3.7%2B-ff9f1c)
 ![Status](https://img.shields.io/badge/status-conclu%C3%ADdo-2ec4b6)
 
-Um agente **A\*** resolve um labirinto em grade, com visual estilo *arcade
-dos anos 90* (paredes azuis, pac-dots, HUD de placar), comparado lado a
-lado com **BFS** (referência) e **Greedy Best-First** (versão ingênua).
+Um agente **A\*** resolve um labirinto em grade, comparado lado a lado
+com **BFS** (referência) e **Greedy Best-First** (versão ingênua).
 
 <p align="center">
-  <img src="screenshot_pygame_astar.png" width="420" alt="A* resolvendo o labirinto, estética arcade">
+  <img src="screenshot_pygame_astar.png" width="420" alt="A* resolvendo o labirinto">
 </p>
 
 ---
 
-## 📑 Sumário
+## Sumário
 
 1. [Contexto e objetivo](#1-contexto-e-objetivo)
 2. [Ambiente](#2-ambiente-maze_envpy)
@@ -44,9 +45,9 @@ permitir comparação teórica e empírica:
 
 | Agente | Tipo | Papel no projeto |
 |---|---|---|
-| 🔵 **BFS** | busca não-informada | referência / baseline (custo mínimo garantido) |
-| 🟡 **Greedy Best-First** | busca informada (só heurística) | versão "ingênua" inicial, mostra falhas/sub-otimalidade |
-| 🔷 **A\*** | busca informada (custo + heurística) | agente final, robusto e ótimo |
+| BFS | busca não-informada | referência / baseline (custo mínimo garantido) |
+| Greedy Best-First | busca informada (só heurística) | versão "ingênua" inicial, mostra falhas/sub-otimalidade |
+| **A\*** | busca informada (custo + heurística) | agente final, robusto e ótimo |
 
 <p align="center">
   <img src="screenshot_pygame_compare.png" width="720" alt="BFS, Greedy e A* rodando ao mesmo tempo, lado a lado">
@@ -97,7 +98,7 @@ pip install -r requirements.txt
 
 ## 5. Como executar
 
-### ▶️ Avaliação completa (métricas + imagens + gráfico)
+### Avaliação completa (métricas + imagens + gráfico)
 
 ```bash
 python run_experiment.py
@@ -113,14 +114,14 @@ no terminal e salva:
 | `output_astar.png` | labirinto + caminho encontrado pelo A* |
 | `comparison_chart.png` | gráfico de barras: custo, nós expandidos e tempo |
 
-#### 🎛️ Parâmetros configuráveis
+#### Parâmetros configuráveis
 
 O tamanho do labirinto, a quantidade de labirintos testados e as seeds
 usadas podem ser escolhidos na linha de comando:
 
 ```bash
 python run_experiment.py --size 20 --num-mazes 15
-python run_experiment.py --seeds 3,7,42,100          # define as seeds explicitamente
+python run_experiment.py --seeds 3,7,42,100,50,20,10,12,25,36          # define as seeds explicitamente
 python run_experiment.py --size 25 --obstacle-prob 0.35 --num-mazes 5
 python run_experiment.py --help                       # lista todas as opções
 ```
@@ -152,34 +153,33 @@ maiores que 40 deixam o BFS e a geração de imagens muito lentos.
 </p>
 
 
-### 🕹️ Visualização animada — A\* sozinho (estética retrô)
+### Visualização animada — A\* sozinho
 
 ```bash
 python pygame_visualize.py
 ```
 
-Acompanhe a **busca do A\* passo a passo em tempo real**, com estética de
-arcade anos 90 (labirinto estilo Pac-Man: paredes azuis, "pac-dots" nas
-células livres, painel de placar no topo).
+Acompanhe a **busca do A\* passo a passo em tempo real**, com um painel
+de estatísticas mostrando o progresso ao vivo.
 
 | Cor | Significado |
 |---|---|
-| ⬛ fundo escuro + pac-dot dourado | célula livre |
-| 🔵 azul elétrico | parede |
-| 🩵 ciano | Open List (fronteira) |
-| 💗 magenta | Closed List (já explorados) |
-| 🟡 amarelo | caminho final *(cor do próprio Pac-Man — evita conflito com o azul das paredes)* |
-| 🟢 verde | início |
-| 🔴 vermelho | objetivo |
+| fundo escuro com pequenos pontos | célula livre |
+| azul | parede/obstáculo |
+| ciano | Open List (fronteira) |
+| magenta | Closed List (já explorados) |
+| amarelo | caminho final |
+| verde | início |
+| vermelho | objetivo |
 
 O painel superior mostra ao vivo o algoritmo, os nós já expandidos e o
 status da busca. O atraso entre cada atualização é configurável pela
-constante `ANIMATION_DELAY_MS`, e a **frequência** dos redesenhos ("sends"
-para a tela) é controlada por `FRAME_EVERY` — ambas no topo de
-`pygame_visualize.py`. Com `FRAME_EVERY = 1` (padrão), a tela é atualizada
-a cada nó expandido; aumentando esse valor (ex.: `5` ou `20`), a tela só
-é redesenhada a cada N nós, o que acelera bastante a animação em
-labirintos grandes, sem alterar o resultado da busca.
+constante `ANIMATION_DELAY_MS`, e a frequência dos redesenhos é
+controlada por `FRAME_EVERY` — ambas no topo de `pygame_visualize.py`.
+Com `FRAME_EVERY = 1` (padrão), a tela é atualizada a cada nó expandido;
+aumentando esse valor (ex.: `5` ou `20`), a tela só é redesenhada a cada
+N nós, o que acelera bastante a animação em labirintos grandes, sem
+alterar o resultado da busca.
 
 Essa visualização usa um *hook* opcional (`on_expand`) que `astar_search`
 expõe apenas para fins de instrumentação/visualização — a lógica de busca,
@@ -187,7 +187,7 @@ a heurística de Manhattan e o resultado do algoritmo permanecem
 exatamente os mesmos, com ou sem a animação (validado nos testes do
 projeto).
 
-**🎲 Novo labirinto aleatório:** ao final de cada busca, aperte **[R]**
+**Novo labirinto aleatório:** ao final de cada busca, aperte **[R]**
 para sortear um labirinto novo (mesmo tamanho e densidade de obstáculos)
 e ver o A* resolver de novo, sem precisar fechar e reabrir o programa.
 Aperte **[ESC]** ou feche a janela para sair. Como `MazeEnv(seed=None)`
@@ -195,7 +195,7 @@ já gera um labirinto verdadeiramente aleatório, isso não exigiu nenhuma
 mudança na lógica de geração do ambiente — só um pequeno loop de
 "jogar de novo" ao redor da mesma busca.
 
-### 🏁 Comparação ao vivo — os três algoritmos ao mesmo tempo
+### Comparação ao vivo — os três algoritmos ao mesmo tempo
 
 ```bash
 python pygame_compare.py
@@ -224,11 +224,11 @@ mas a pausa só ocorre a cada N nós) — útil para acelerar a comparação
 quando o BFS, por expandir muito mais nós, demora bem mais que o A* e o
 Greedy para terminar.
 
-**🎲 Novo labirinto aleatório:** assim como no modo single-view, aperte
+**Novo labirinto aleatório:** assim como no modo single-view, aperte
 **[R]** ao final da comparação para sortear um labirinto novo e ver os
 três algoritmos competirem de novo, ou **[ESC]**/feche a janela para sair.
 
-### 🔍 Debug rápido em modo texto
+### Debug rápido em modo texto
 
 ```python
 from maze_env import MazeEnv
@@ -268,7 +268,7 @@ print("Custo:", result["cost"], "| Nós expandidos:", result["nodes_expanded"])
 > que o BFS. Greedy expande bem menos nós, só que com custo ~13% maior
 > (sub-ótimo).
 
-> ⚠️ **Atenção**: os números desta tabela são **médias de 10 labirintos
+> **Atenção**: os números desta tabela são **médias de 10 labirintos
 > diferentes** (seeds 0 a 9). Já as imagens `output_astar.png`,
 > `output_bfs.png` e `output_greedy.png` mostram o resultado de **um único
 > labirinto de demonstração** (seed=0, indicado no próprio título de cada
@@ -312,9 +312,9 @@ agente-busca-heuristica-labirinto/
 ├── maze_env.py                    # ambiente (grid, estado, ações, recompensa, término)
 ├── agents.py                      # BFS, Greedy Best-First e A* (todos com hook opcional on_expand)
 ├── visualize.py                   # renderização estática do labirinto e do caminho em PNG
-├── pygame_visualize.py            # animação em tempo real da busca do A* (estética retrô, tecla [R] = novo labirinto)
+├── pygame_visualize.py            # animação em tempo real da busca do A* (tecla [R] = novo labirinto)
 ├── pygame_compare.py              # BFS, Greedy e A* rodando lado a lado, ao mesmo tempo
-├── charts.py                      # gráficos comparativos entre agentes (mesma estética)
+├── charts.py                      # gráficos comparativos entre agentes
 ├── run_experiment.py              # protocolo de avaliação: métricas, imagens, gráfico (parâmetros configuráveis via CLI)
 │
 ├── output_astar.png               # imagem gerada: labirinto + caminho encontrado pelo A*
