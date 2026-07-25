@@ -3,7 +3,7 @@
 **Estudo Dirigido — IA 2026.1**
 Integrante: **Yasmin da Silva Muniz** 
 GitHub: [Yasmiinmuniz (Yasmin Muniz)](https://github.com/Yasmiinmuniz)
-Vídeo da apresentação: *(link do YouTube — adicionar após a gravação)*
+Vídeo da apresentação: https://youtu.be/AHCFm9Cne5o
 
 ![Python](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python&logoColor=white)
 ![Pygame](https://img.shields.io/badge/Pygame-2.5%2B-1a1aff)
@@ -122,7 +122,7 @@ usadas podem ser escolhidos na linha de comando:
 ```bash
 python run_experiment.py --size 20 --num-mazes 15
 python run_experiment.py --seeds 3,7,42,100,50,20,10,12,25,36          # define as seeds explicitamente
-python run_experiment.py --size 25 --obstacle-prob 0.35 --num-mazes 5
+python run_experiment.py --size 25 --obstacle-prob 0.15 --num-mazes 5
 python run_experiment.py --help                       # lista todas as opções
 ```
 
